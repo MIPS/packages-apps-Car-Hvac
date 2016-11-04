@@ -30,7 +30,7 @@ import android.util.Log;
 
 import android.support.car.Car;
 import android.support.car.CarNotConnectedException;
-import android.support.car.ServiceConnectionCallback;
+import android.support.car.CarConnectionCallback;
 
 import com.android.car.vehiclenetwork.VehicleNetworkConsts.VehicleHvacFanDirection;
 import com.android.car.vehiclenetwork.VehicleNetworkConsts.VehicleSeat;
@@ -123,7 +123,7 @@ public class HvacController extends Service {
                 return;
             }
 
-            mCarApiClient = Car.createCar(this, mServiceConnectionCallback);
+            mCarApiClient = Car.createCar(this, mCarConnectionCallback);
             mCarApiClient.connect();
         }
     }
@@ -174,10 +174,10 @@ public class HvacController extends Service {
 
     }
 
-    private final ServiceConnectionCallback mServiceConnectionCallback =
-            new ServiceConnectionCallback() {
+    private final CarConnectionCallback mCarConnectionCallback =
+            new CarConnectionCallback() {
                 @Override
-                public void onServiceConnected() {
+                public void onConnected(Car car) {
                     synchronized (mHvacManagerReady) {
                         try {
                             initHvacManager((CarHvacManager) mCarApiClient.getCarManager(
@@ -190,11 +190,7 @@ public class HvacController extends Service {
                 }
 
                 @Override
-                public void onServiceDisconnected() {
-                }
-
-                @Override
-                public void onServiceConnectionFailed() {
+                public void onDisconnected(Car car) {
                 }
             };
 
