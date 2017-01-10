@@ -24,7 +24,6 @@ import android.car.hardware.CarPropertyValue;
 import android.car.hardware.hvac.CarHvacManager;
 import android.content.Intent;
 import android.content.pm.PackageManager;
-import android.hardware.vehicle.V2_0.VehicleHvacFanDirection;
 import android.os.AsyncTask;
 import android.os.Binder;
 import android.os.Handler;
@@ -47,9 +46,9 @@ public class HvacController extends Service {
     private static final int PASSENGER_ZONE_ID = VehicleSeat.SEAT_ROW_1_RIGHT;
 
     public static final int[] AIRFLOW_STATES = new int[]{
-            VehicleHvacFanDirection.FACE,
-            VehicleHvacFanDirection.FLOOR,
-            VehicleHvacFanDirection.FACE_AND_FLOOR
+            CarHvacManager.FAN_POSITION_FACE,
+            CarHvacManager.FAN_POSITION_FLOOR,
+            CarHvacManager.FAN_POSITION_FACE_AND_FLOOR
     };
 
     /**

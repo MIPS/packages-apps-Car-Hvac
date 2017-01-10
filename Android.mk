@@ -39,7 +39,4 @@ LOCAL_DEX_PREOPT := false
 
 include packages/services/Car/car-support-lib/car-support.mk
 
-# TODO(b/32669296) -- to get HVAC Fan direction consts
-LOCAL_STATIC_JAVA_LIBRARIES += android.hardware.vehicle@2.0-java-static
-
 include $(BUILD_PACKAGE)
