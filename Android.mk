@@ -37,6 +37,7 @@ LOCAL_PROGUARD_ENABLED := disabled
 
 LOCAL_DEX_PREOPT := false
 
+include packages/apps/Car/libs/car-stream-ui-lib/car-stream-ui-lib.mk
 include packages/services/Car/car-support-lib/car-support.mk
 
 include $(BUILD_PACKAGE)
