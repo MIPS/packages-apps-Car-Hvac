@@ -33,6 +33,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import com.android.car.hvac.controllers.HvacPanelController;
+import com.android.car.hvac.ui.SystemUiObserver;
 import com.android.car.hvac.ui.TemperatureBarOverlay;
 
 /**
@@ -63,6 +64,8 @@ public class HvacUiService extends Service {
     private ViewGroup mPassengerTemperatureBarTouchOverlay;
     private TemperatureBarOverlay mDriverTemperatureBar;
     private TemperatureBarOverlay mPassengerTemperatureBar;
+
+    private int mStatusBarHeight = -1;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -137,7 +140,38 @@ public class HvacUiService extends Service {
         if (!bindService(bindIntent, mServiceConnection, Context.BIND_AUTO_CREATE)) {
             Log.e(TAG, "Failed to connect to HvacController.");
         }
+
+        params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_DISPLAY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT);
+        SystemUiObserver observer =
+                (SystemUiObserver) inflater.inflate(R.layout.system_ui_observer, null);
+        observer.setListener(visible -> {
+            adjustPosition(mDriverTemperatureBarTouchOverlay, visible);
+            adjustPosition(mPassengerTemperatureBarTouchOverlay, visible);
+            adjustPosition(mDriverTemperatureBar, visible);
+            adjustPosition(mPassengerTemperatureBar, visible);
+            adjustPosition(mContainer, visible);
+        });
+        mWindowManager.addView(observer, params);
     }
+
+
+    private void adjustPosition(View v, boolean systemUiVisible) {
+        WindowManager.LayoutParams lp = (WindowManager.LayoutParams) v.getLayoutParams();
+        if (systemUiVisible) {
+            lp.y -= getStatusBarHeight();
+        } else {
+            lp.y += getStatusBarHeight();
+        }
+        mWindowManager.updateViewLayout(v, lp);
+    }
+
 
     @Override
     public void onDestroy() {
@@ -259,11 +293,17 @@ public class HvacUiService extends Service {
     }
 
     private int getStatusBarHeight() {
+        // Cache the result to keep it fast.
+        if (mStatusBarHeight >= 0) {
+            return mStatusBarHeight;
+        }
+
         int result = 0;
         int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
         if (resourceId > 0) {
             result = getResources().getDimensionPixelSize(resourceId);
         }
+        mStatusBarHeight = result;
         return result;
     }
 }
