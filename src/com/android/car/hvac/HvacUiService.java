@@ -33,6 +33,7 @@ import android.view.ViewGroup;
 import android.view.WindowManager;
 import android.widget.LinearLayout;
 import com.android.car.hvac.controllers.HvacPanelController;
+import com.android.car.hvac.ui.SystemUiObserver;
 import com.android.car.hvac.ui.TemperatureBarOverlay;
 
 /**
@@ -63,6 +64,8 @@ public class HvacUiService extends Service {
     private ViewGroup mPassengerTemperatureBarTouchOverlay;
     private TemperatureBarOverlay mDriverTemperatureBar;
     private TemperatureBarOverlay mPassengerTemperatureBar;
+
+    private int mStatusBarHeight = -1;
 
     @Override
     public IBinder onBind(Intent intent) {
@@ -108,6 +111,7 @@ public class HvacUiService extends Service {
 
         params.width = mScreenWidth;
         params.height = mScreenBottom;
+        params.setTitle("HVAC Container");
         disableAnimations(params);
 
         mContainer = inflater.inflate(R.layout.hvac_panel, null);
@@ -136,7 +140,38 @@ public class HvacUiService extends Service {
         if (!bindService(bindIntent, mServiceConnection, Context.BIND_AUTO_CREATE)) {
             Log.e(TAG, "Failed to connect to HvacController.");
         }
+
+        params = new WindowManager.LayoutParams(
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.MATCH_PARENT,
+                WindowManager.LayoutParams.TYPE_DISPLAY_OVERLAY,
+                WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
+                        | WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
+                        | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
+                PixelFormat.TRANSLUCENT);
+        SystemUiObserver observer =
+                (SystemUiObserver) inflater.inflate(R.layout.system_ui_observer, null);
+        observer.setListener(visible -> {
+            adjustPosition(mDriverTemperatureBarTouchOverlay, visible);
+            adjustPosition(mPassengerTemperatureBarTouchOverlay, visible);
+            adjustPosition(mDriverTemperatureBar, visible);
+            adjustPosition(mPassengerTemperatureBar, visible);
+            adjustPosition(mContainer, visible);
+        });
+        mWindowManager.addView(observer, params);
     }
+
+
+    private void adjustPosition(View v, boolean systemUiVisible) {
+        WindowManager.LayoutParams lp = (WindowManager.LayoutParams) v.getLayoutParams();
+        if (systemUiVisible) {
+            lp.y -= getStatusBarHeight();
+        } else {
+            lp.y += getStatusBarHeight();
+        }
+        mWindowManager.updateViewLayout(v, lp);
+    }
+
 
     @Override
     public void onDestroy() {
@@ -174,22 +209,24 @@ public class HvacUiService extends Service {
         }
     };
 
-    private WindowManager.LayoutParams createClickableOverlayLayoutParam() {
-        return new WindowManager.LayoutParams(
+    private WindowManager.LayoutParams createClickableOverlayLayoutParam(String title) {
+        WindowManager.LayoutParams lp = new WindowManager.LayoutParams(
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.WRAP_CONTENT,
                 WindowManager.LayoutParams.TYPE_DISPLAY_OVERLAY,
                 WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE
                         | WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS,
                 PixelFormat.TRANSLUCENT);
+        lp.setTitle(title);
+        return lp;
     }
 
     private TemperatureBarOverlay createTemperatureBarOverlay(LayoutInflater inflater,
-            int gravity) {
+            int gravity, String title) {
         TemperatureBarOverlay button = (TemperatureBarOverlay) inflater
                 .inflate(R.layout.hvac_temperature_bar_overlay, null);
 
-        WindowManager.LayoutParams params = createClickableOverlayLayoutParam();
+        WindowManager.LayoutParams params = createClickableOverlayLayoutParam(title);
         params.gravity = gravity;
         params.x = mTemperatureSideMargin;
         params.y = mScreenBottom - mTemperatureOverlayHeight;
@@ -207,8 +244,8 @@ public class HvacUiService extends Service {
      * Creates a touchable overlay in the dimensions of a collapsed {@link TemperatureBarOverlay}.
      * @return a {@link ViewGroup} that was added to the {@link WindowManager}
      */
-    private ViewGroup addTemperatureTouchOverlay(int gravity) {
-        WindowManager.LayoutParams params = createClickableOverlayLayoutParam();
+    private ViewGroup addTemperatureTouchOverlay(int gravity, String title) {
+        WindowManager.LayoutParams params = createClickableOverlayLayoutParam(title);
         params.gravity = gravity;
         params.x = mTemperatureSideMargin;
         params.y = mScreenBottom - mTemperatureBarCollapsedHeight;
@@ -223,9 +260,11 @@ public class HvacUiService extends Service {
 
     private void createTemperatureBars(LayoutInflater inflater) {
         mDriverTemperatureBar
-                = createTemperatureBarOverlay(inflater, Gravity.TOP | Gravity.LEFT);
+                = createTemperatureBarOverlay(
+                        inflater, Gravity.TOP | Gravity.LEFT, "HVAC Driver Temp");
         mPassengerTemperatureBar
-                = createTemperatureBarOverlay(inflater, Gravity.TOP | Gravity.RIGHT);
+                = createTemperatureBarOverlay(
+                        inflater, Gravity.TOP | Gravity.RIGHT, "HVAC Passenger Temp");
 
         // Create a transparent overlay that is the size of the collapsed temperature bar.
         // It will receive touch events and trigger the expand/collapse of the panel. This is
@@ -234,9 +273,11 @@ public class HvacUiService extends Service {
         // to maintain the temperature bar overlay at constant (expanded) height and just
         // update whether or not it is touchable/clickable.
         mDriverTemperatureBarTouchOverlay
-                = addTemperatureTouchOverlay(Gravity.TOP | Gravity.LEFT);
+                = addTemperatureTouchOverlay(
+                        Gravity.TOP | Gravity.LEFT, "HVAC Driver Touch Overlay");
         mPassengerTemperatureBarTouchOverlay
-                = addTemperatureTouchOverlay(Gravity.TOP | Gravity.RIGHT);
+                = addTemperatureTouchOverlay(
+                        Gravity.TOP | Gravity.RIGHT, "HVAC Passenger Touch Overlay");
     }
 
     /**
@@ -252,11 +293,17 @@ public class HvacUiService extends Service {
     }
 
     private int getStatusBarHeight() {
+        // Cache the result to keep it fast.
+        if (mStatusBarHeight >= 0) {
+            return mStatusBarHeight;
+        }
+
         int result = 0;
         int resourceId = getResources().getIdentifier("status_bar_height", "dimen", "android");
         if (resourceId > 0) {
             result = getResources().getDimensionPixelSize(resourceId);
         }
+        mStatusBarHeight = result;
         return result;
     }
 }
