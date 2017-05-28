@@ -36,11 +36,16 @@ import com.android.car.hvac.controllers.HvacPanelController;
 import com.android.car.hvac.ui.SystemUiObserver;
 import com.android.car.hvac.ui.TemperatureBarOverlay;
 
+import java.util.ArrayList;
+import java.util.List;
+
 /**
  * Creates a sliding panel for HVAC controls and adds it to the window manager above SystemUI.
  */
 public class HvacUiService extends Service {
     private static final String TAG = "HvacUiService";
+
+    private final List<View> mAddedViews = new ArrayList<>();
 
     private WindowManager mWindowManager;
 
@@ -130,7 +135,7 @@ public class HvacUiService extends Service {
         mPanel = mContainer.findViewById(R.id.hvac_center_panel);
         mPanel.getLayoutParams().height = mPanelCollapsedHeight;
 
-        mWindowManager.addView(mContainer, params);
+        addViewToWindowManagerAndTrack(mContainer, params);
 
         createTemperatureBars(inflater);
         mHvacPanelController = new HvacPanelController(this /* context */, mContainer,
@@ -158,9 +163,13 @@ public class HvacUiService extends Service {
             adjustPosition(mPassengerTemperatureBar, visible);
             adjustPosition(mContainer, visible);
         });
-        mWindowManager.addView(observer, params);
+        addViewToWindowManagerAndTrack(observer, params);
     }
 
+    private void addViewToWindowManagerAndTrack(View view, WindowManager.LayoutParams params) {
+        mWindowManager.addView(view, params);
+        mAddedViews.add(view);
+    }
 
     private void adjustPosition(View v, boolean systemUiVisible) {
         WindowManager.LayoutParams lp = (WindowManager.LayoutParams) v.getLayoutParams();
@@ -175,7 +184,10 @@ public class HvacUiService extends Service {
 
     @Override
     public void onDestroy() {
-        mWindowManager.removeView(mPanel);
+        for (View view : mAddedViews) {
+            mWindowManager.removeView(view);
+        }
+        mAddedViews.clear();
         if(mHvacController != null){
             unbindService(mServiceConnection);
         }
@@ -235,7 +247,7 @@ public class HvacUiService extends Service {
 
         disableAnimations(params);
         button.setLayoutParams(params);
-        mWindowManager.addView(button, params);
+        addViewToWindowManagerAndTrack(button, params);
 
         return button;
     }
@@ -254,7 +266,7 @@ public class HvacUiService extends Service {
 
         ViewGroup overlay = new LinearLayout(this /* context */);
         overlay.setLayoutParams(params);
-        mWindowManager.addView(overlay, params);
+        addViewToWindowManagerAndTrack(overlay, params);
         return overlay;
     }
 
